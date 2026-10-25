@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=800">
+<title>Kindle Dashboard</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { background: #fff; color: #000; }
+  body {
+    width: 800px; height: 600px; overflow: hidden;
+    padding: 12px;
+    font-family: 'Courier New', Courier, monospace, sans-serif;
+    border: 3px solid #000;
+    position: relative;
+  }
+  .main { position: absolute; top: 12px; left: 12px; right: 12px; height: 506px; }
+
+  /* 左カラム */
+  .left { position: absolute; top: 0; left: 0; width: 276px; height: 506px; }
+  .box { border: 3px solid #000; padding: 12px; }
+  .clock { text-align: center; height: 128px; }
+  .time { font-size: 56px; font-weight: bold; letter-spacing: 2px; line-height: 1.1; }
+  .date { font-size: 20px; font-weight: bold; margin-top: 4px; }
+  .cal { position: absolute; top: 144px; left: 0; right: 0; bottom: 0; padding: 10px 8px; }
+  .cal-head { font-size: 18px; font-weight: bold; text-align: center; margin-bottom: 6px; }
+  .weather { height: 434px; padding: 10px 14px; }
+  .wtitle { font-size: 18px; font-weight: bold; border-bottom: 2px solid #000; padding-bottom: 4px; }
+  .wsum { font-size: 18px; white-space: nowrap; font-weight: bold; margin: 10px 0 8px; }
+  .wsum span { margin-right: 10px; }
+  table.hourly { width: 100%; border-collapse: collapse; text-align: center; font-size: 19px; font-weight: bold; }
+  table.hourly th { font-size: 14px; border-bottom: 2px solid #000; padding-bottom: 2px; }
+  table.hourly td { padding: 2px 0; border-bottom: 1px solid #000; }
+
+  /* 右カラム */
+  .right { position: absolute; top: 0; left: 292px; right: 0; height: 506px; }
+  table.calt { width: 100%; border-collapse: collapse; text-align: center; font-size: 16px; font-weight: bold; }
+  table.calt th { border-bottom: 2px solid #000; padding-bottom: 3px; font-size: 14px; }
+  table.calt td { padding: 7px 0; }
+  table.calt td.today { background: #000; color: #fff; }
+
+  /* 飾り：枠なし・右下の端に詰める */
+  .art { position: absolute; right: 0; bottom: 0; font-size: 0; line-height: 0; white-space: nowrap; }
+  .art img { width: 64px; height: 64px; image-rendering: pixelated; margin-left: 2px; }
+
+  /* フッター */
+  .footer {
+    position: absolute; left: 12px; right: 12px; bottom: 8px; height: 50px;
+    border-top: 3px solid #000; padding-top: 8px;
+  }
+  .status { font-size: 14px; font-weight: bold; line-height: 38px; }
+  .btn {
+    position: absolute; right: 0; top: 8px;
+    border: 3px solid #000; background: #000; color: #fff;
+    padding: 5px 22px; font-size: 18px; font-weight: bold;
+    font-family: inherit;
+  }
+</style>
+</head>
+<body>
+
+<div class="main">
+  <div class="left">
+    <div class="box clock">
+      <div class="time" id="time">--:--</div>
+      <div class="date" id="date">----.--.-- (---)</div>
+    </div>
+    <div class="box cal">
+      <div class="cal-head" id="calhead">----</div>
+      <table class="calt" id="cal"></table>
+    </div>
+  </div>
+
+  <div class="right">
+    <div class="box weather">
+      <div class="wtitle">■ WEATHER (大宮)</div>
+      <div class="wsum"><span id="wstatus">---</span><span>最高 <span id="tmax">--</span>°</span><span>最低 <span id="tmin">--</span>°</span><span>降水 <span id="pop">--</span>%</span></div>
+      <table class="hourly" id="hourly"></table>
+    </div>
+    <div class="art">
+      <img src="d-m-grey.gif" alt=""><img src="d-grey.gif" alt=""><img src="d-agu.gif" alt=""><img src="d-s-grey.gif" alt="">
+    </div>
+  </div>
+</div>
+
+<div class="footer">
+  <div class="status" id="status">LAST UPDATE: --:--</div>
+  <button class="btn" id="btn" type="button">更新</button>
+</div>
+
+<script>
+/* Kindle の古いブラウザ向けに ES5 で記述 */
+var DOW = ['SUN','MON','TUE','WED','THU','FRI','SAT'];
+var MON = ['JANUARY','FEBRUARY','MARCH','APRIL','MAY','JUNE','JULY','AUGUST','SEPTEMBER','OCTOBER','NOVEMBER','DECEMBER'];
+function p2(n){ return (n < 10 ? '0' : '') + n; }
+function $(id){ return document.getElementById(id); }
+
+function weatherText(c){
+  if (c === 0) return '晴れ';
+  if (c <= 2) return '晴れ時々曇り';
+  if (c === 3) return '曇り';
+  if (c === 45 || c === 48) return '霧';
+  if (c >= 51 && c <= 57) return '霧雨';
+  if (c >= 61 && c <= 67) return '雨';
+  if (c >= 71 && c <= 77) return '雪';
+  if (c >= 80 && c <= 82) return 'にわか雨';
+  if (c >= 85 && c <= 86) return 'にわか雪';
+  if (c >= 95) return '雷雨';
+  return '---';
+}
+
+function iconName(c){
+  if (c === 0) return 'sun';
+  if (c <= 2) return 'partly';
+  if (c === 3) return 'cloud';
+  if (c === 45 || c === 48) return 'fog';
+  if (c >= 51 && c <= 67) return 'rain';
+  if (c >= 71 && c <= 77) return 'snow';
+  if (c >= 80 && c <= 82) return 'rain';
+  if (c >= 85 && c <= 86) return 'snow';
+  if (c >= 95) return 'thunder';
+  return 'cloud';
+}
+function icon(c, size){
+  return '<img src="icon-' + iconName(c) + '.png" width="' + size + '" height="' + size + '" alt="" style="vertical-align:middle">';
+}
+
+function drawClock(){
+  var d = new Date();
+  $('time').innerHTML = p2(d.getHours()) + ':' + p2(d.getMinutes());
+  $('date').innerHTML = d.getFullYear() + '.' + p2(d.getMonth()+1) + '.' + p2(d.getDate()) + ' (' + DOW[d.getDay()] + ')';
+  $('status').innerHTML = 'LAST UPDATE: ' + p2(d.getHours()) + ':' + p2(d.getMinutes());
+  return d;
+}
+
+function drawCalendar(d){
+  var y = d.getFullYear(), m = d.getMonth(), today = d.getDate();
+  $('calhead').innerHTML = y + ' ' + MON[m];
+  var first = new Date(y, m, 1).getDay();
+  var days = new Date(y, m + 1, 0).getDate();
+  var h = '<tr>';
+  for (var i = 0; i < 7; i++) h += '<th>' + DOW[i].substr(0,2) + '</th>';
+  h += '</tr><tr>';
+  var col = 0, k;
+  for (k = 0; k < first; k++) { h += '<td></td>'; col++; }
+  for (var day = 1; day <= days; day++) {
+    h += '<td' + (day === today ? ' class="today"' : '') + '>' + day + '</td>';
+    col++;
+    if (col === 7 && day < days) { h += '</tr><tr>'; col = 0; }
+  }
+  while (col > 0 && col < 7) { h += '<td></td>'; col++; }
+  h += '</tr>';
+  $('cal').innerHTML = h;
+}
+
+function drawHourly(hh){
+  /* 次の3の倍数の時刻から、3時間ごとに8コマ */
+  var now = new Date();
+  var start = Math.floor(now.getHours() / 3) * 3 + 3;
+  var today = now.getFullYear() + '-' + p2(now.getMonth()+1) + '-' + p2(now.getDate());
+  var startIdx = -1, i;
+  for (i = 0; i < hh.time.length; i++) {
+    if (hh.time[i] === today + 'T' + p2(start % 24) + ':00' && (start < 24 || i > 0)) { startIdx = i; break; }
+  }
+  if (start >= 24) {
+    for (i = 0; i < hh.time.length; i++) { if (hh.time[i].indexOf('T00:00') > -1 && hh.time[i].substr(0,10) !== today) { startIdx = i; break; } }
+  }
+  if (startIdx < 0) { $('hourly').innerHTML = ''; return; }
+  var h = '<tr><th>時刻</th><th>天気</th><th>気温</th><th>降水</th></tr>';
+  for (i = 0; i < 8 && startIdx + i * 3 < hh.time.length; i++) {
+    var k = startIdx + i * 3;
+    h += '<tr><td>' + hh.time[k].substr(11,5) + '</td><td>' + icon(hh.weather_code[k], 28) + '</td><td>' +
+         Math.round(hh.temperature_2m[k]) + '°</td><td>' + hh.precipitation_probability[k] + '%</td></tr>';
+  }
+  $('hourly').innerHTML = h;
+}
+
+function loadWeather(){
+  var url = 'https://api.open-meteo.com/v1/forecast?latitude=35.906&longitude=139.624' +
+            '&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max' +
+            '&hourly=weather_code,temperature_2m,precipitation_probability' +
+            '&timezone=Asia%2FTokyo&forecast_days=2';
+  var x = new XMLHttpRequest();
+  x.onreadystatechange = function(){
+    if (x.readyState !== 4) return;
+    if (x.status !== 200) { $('wstatus').innerHTML = '取得失敗'; return; }
+    try {
+      var j = JSON.parse(x.responseText).daily;
+      $('wstatus').innerHTML = icon(j.weather_code[0], 36);
+      $('tmax').innerHTML = Math.round(j.temperature_2m_max[0]);
+      $('tmin').innerHTML = Math.round(j.temperature_2m_min[0]);
+      $('pop').innerHTML = j.precipitation_probability_max[0];
+      drawHourly(JSON.parse(x.responseText).hourly);
+    } catch (e) { $('wstatus').innerHTML = '取得失敗'; }
+  };
+  x.open('GET', url, true);
+  x.send(null);
+}
+
+function refresh(){
+  var d = drawClock();
+  drawCalendar(d);
+  loadWeather();
+}
+$('btn').onclick = refresh;
+refresh();
+</script>
+</body>
+</html>
