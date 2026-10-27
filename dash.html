@@ -41,6 +41,10 @@
   .art { position: absolute; right: 0; bottom: 0; font-size: 0; line-height: 0; white-space: nowrap; }
   .art img { width: 56px; height: 56px; image-rendering: pixelated; margin-left: 1px; }
 
+  /* 更新ボタン（天気の下）：Kindle では画面のどこをタッチしても更新 */
+  .tapbtn { position: absolute; left: 0; top: 662px; width: 37%; height: 46px; background: #000; color: #fff;
+            font-size: 18px; font-weight: bold; text-align: center; line-height: 46px; }
+
   /* フッター */
   .footer { position: absolute; left: 8px; right: 8px; bottom: 6px; height: 44px; border-top: 3px solid #000; }
   .status { font-size: 12px; font-weight: bold; line-height: 40px; }
@@ -64,6 +68,8 @@
         <table class="hourly" id="hourly"></table>
       </div>
     </div>
+
+    <div class="tapbtn">更新</div>
 
     <div class="right">
       <div class="box cal">
